@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "UK Auto Market"
+description = "A minimalist UK car marketplace for discovering, comparing, saving, and enquiring about vehicles for sale."
+version = "1.0.0"
+id = "artifacts/uk-auto-market"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22301
+
+[services.development]
+run = "pnpm --filter @workspace/uk-auto-market run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/uk-auto-market", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/uk-auto-market/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22301"
+BASE_PATH = "/"
