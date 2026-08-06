@@ -1,60 +1,62 @@
-import { Router, type IRouter } from "express";
-import { db, listingsTable, listingClicksTable } from "@workspace/db";
-import { eq, and, gte, lte, desc } from "drizzle-orm";
+import {
+  pgTable,
+  text,
+  serial,
+  integer,
+  timestamp,
+  boolean,
+  doublePrecision,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-const router: IRouter = Router();
+export const listingsTable = pgTable(
+  "listings",
+  {
+    id: serial("id").primaryKey(),
+    source: text("source").notNull(),
+    sourceId: text("source_id").notNull(),
+    dealerId: text("dealer_id"),
 
-const listingsQuerySchema = z.object({
-  make: z.string().optional(),
-  model: z.string().optional(),
-  minPrice: z.coerce.number().optional(),
-  maxPrice: z.coerce.number().optional(),
-  maxMileage: z.coerce.number().optional(),
+    title: text("title").notNull(),
+    make: text("make").notNull(),
+    model: text("model").notNull(),
+    year: integer("year"),
+    price: doublePrecision("price"),
+    mileage: integer("mileage"),
+    registration: text("registration"),
+
+    imageUrl: text("image_url"),
+    sourceUrl: text("source_url").notNull(),
+    sourceName: text("source_name"),
+    location: text("location"),
+
+    isActive: boolean("is_active").notNull().default(true),
+    firstSeenAt: timestamp("first_seen_at").notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    sourceUnique: uniqueIndex("listings_source_source_id_idx").on(
+      table.source,
+      table.sourceId,
+    ),
+  }),
+);
+
+export const insertListingSchema = createInsertSchema(listingsTable).omit({
+  id: true,
+});
+export type InsertListing = z.infer<typeof insertListingSchema>;
+export type Listing = typeof listingsTable.$inferSelect;
+
+export const listingClicksTable = pgTable("listing_clicks", {
+  id: serial("id").primaryKey(),
+  listingId: integer("listing_id").notNull(),
+  clickedAt: timestamp("clicked_at").notNull().defaultNow(),
 });
 
-// GET /listings?make=&model=&minPrice=&maxPrice=&maxMileage=
-router.get("/listings", async (req, res) => {
-  const parsed = listingsQuerySchema.safeParse(req.query);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.flatten() });
-    return;
-  }
-  const { make, model, minPrice, maxPrice, maxMileage } = parsed.data;
-
-  const conditions = [eq(listingsTable.isActive, true)];
-  if (make) conditions.push(eq(listingsTable.make, make));
-  if (model) conditions.push(eq(listingsTable.model, model));
-  if (minPrice !== undefined) conditions.push(gte(listingsTable.price, minPrice));
-  if (maxPrice !== undefined) conditions.push(lte(listingsTable.price, maxPrice));
-  if (maxMileage !== undefined) conditions.push(lte(listingsTable.mileage, maxMileage));
-
-  const results = await db
-    .select()
-    .from(listingsTable)
-    .where(and(...conditions))
-    .orderBy(desc(listingsTable.lastSeenAt))
-    .limit(100);
-
-  res.json(results);
-});
-
-// GET /redirect/:id — logs the click, then redirects to the original listing
-router.get("/redirect/:id", async (req, res) => {
-  const id = Number(req.params.id);
-  if (Number.isNaN(id)) {
-    res.status(400).json({ error: "Invalid listing id" });
-    return;
-  }
-
-  const [listing] = await db.select().from(listingsTable).where(eq(listingsTable.id, id));
-  if (!listing) {
-    res.status(404).json({ error: "Listing not found" });
-    return;
-  }
-
-  await db.insert(listingClicksTable).values({ listingId: id });
-  res.redirect(302, listing.sourceUrl);
-});
-
-export default router;
+export const insertListingClickSchema = createInsertSchema(
+  listingClicksTable,
+).omit({ id: true });
+export type InsertListingClick = z.infer<typeof insertListingClickSchema>;
