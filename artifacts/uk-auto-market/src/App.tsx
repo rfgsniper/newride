@@ -116,14 +116,6 @@ function ListingCard({
           <span>
             <Gauge size={13} /> {mileageFmt(listing.mileage)}
           </span>
-          {listing.year && (
-            <span>
-              <CalendarDays size={13} /> {listing.year}
-            </span>
-          )}
-          <span>
-            <Gauge size={13} /> {mileageFmt(listing.mileage)}
-          </span>
         </div>
         <div className="price-row">
           <strong className="price">{money(listing.price)}</strong>
