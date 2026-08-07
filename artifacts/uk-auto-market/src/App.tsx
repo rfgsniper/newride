@@ -412,6 +412,9 @@ function ContactSellerModal({
 
 function AppContent() {
   const [filters, setFilters] = useState<Filters>(initialFilters);
+  const [sort, setSort] = useState<
+    "price-asc" | "price-desc" | "mileage-asc" | "mileage-desc" | "recommended"
+  >("recommended");
   const [saved, setSaved] = useState<number[]>(() => {
     try {
       return JSON.parse(localStorage.getItem("uk-auto-saved") || "[]");
@@ -442,7 +445,9 @@ function AppContent() {
     minPrice: filters.minPrice ? Number(filters.minPrice) : undefined,
     maxPrice: filters.maxPrice ? Number(filters.maxPrice) : undefined,
     maxMileage: filters.maxMileage ? Number(filters.maxMileage) : undefined,
+    sortBy: sort,
   };
+
   const { data: listings = [], isLoading, isError } = useListings(apiFilters);
 
   const resetFilters = () => {
@@ -524,13 +529,28 @@ function AppContent() {
                   ? "Loading cars…"
                   : `${listings.length.toLocaleString()} cars available`}
               </h2>
-              <button
-                className="filter-trigger"
-                onClick={() => setDrawerOpen(true)}
-                data-testid="button-open-filters"
-              >
-                <SlidersHorizontal size={15} /> Filters
-              </button>
+              <div className="toolbar-actions">
+                <select
+                  className="control sort-select"
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value as typeof sort)}
+                  aria-label="Sort vehicles"
+                  data-testid="select-sort"
+                >
+                  <option value="recommended">Recommended</option>
+                  <option value="price-asc">Price: low to high</option>
+                  <option value="price-desc">Price: high to low</option>
+                  <option value="mileage-asc">Mileage: low to high</option>
+                  <option value="mileage-desc">Mileage: high to low</option>
+                </select>
+                <button
+                  className="filter-trigger"
+                  onClick={() => setDrawerOpen(true)}
+                  data-testid="button-open-filters"
+                >
+                  <SlidersHorizontal size={15} /> Filters
+                </button>
+              </div>
             </div>
             <div className="results-layout">
               <FiltersPanel

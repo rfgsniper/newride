@@ -56,8 +56,16 @@ router.get("/listings", async (req, res) => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const { make, model, minPrice, maxPrice, maxMileage, postcode, maxDistance } =
-    parsed.data;
+  const {
+    make,
+    model,
+    minPrice,
+    maxPrice,
+    maxMileage,
+    postcode,
+    maxDistance,
+    sortBy,
+  } = parsed.data;
 
   const conditions = [eq(listingsTable.isActive, true)];
   if (make) conditions.push(ilike(listingsTable.make, `%${make}%`));
@@ -96,16 +104,31 @@ router.get("/listings", async (req, res) => {
   }
 
   const baseQuery = db
-  .select({
-    ...getTableColumns(listingsTable),
-    ...(distanceExpr ? { distance: distanceExpr } : {}),
-  })
-  .from(listingsTable)
-  .where(and(...conditions));
+    .select({
+      ...getTableColumns(listingsTable),
+      ...(distanceExpr ? { distance: distanceExpr } : {}),
+    })
+    .from(listingsTable)
+    .where(and(...conditions));
 
-  const results = distanceExpr
-    ? await baseQuery.orderBy(sql`${distanceExpr} ASC NULLS LAST`).limit(100)
-    : await baseQuery.orderBy(desc(listingsTable.lastSeenAt)).limit(100);
+  function getOrderBy() {
+    switch (sortBy) {
+      case "price-asc":
+        return sql`${listingsTable.price} ASC NULLS LAST`;
+      case "price-desc":
+        return sql`${listingsTable.price} DESC NULLS LAST`;
+      case "mileage-asc":
+        return sql`${listingsTable.mileage} ASC NULLS LAST`;
+      case "mileage-desc":
+        return sql`${listingsTable.mileage} DESC NULLS LAST`;
+      default:
+        return distanceExpr
+          ? sql`${distanceExpr} ASC NULLS LAST`
+          : desc(listingsTable.lastSeenAt);
+    }
+  }
+
+  const results = await baseQuery.orderBy(getOrderBy()).limit(100);
 
   res.json(results);
 });

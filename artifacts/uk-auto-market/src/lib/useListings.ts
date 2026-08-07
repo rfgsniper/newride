@@ -33,6 +33,12 @@ export type ListingFilters = {
   maxMileage?: number;
   postcode?: string;
   maxDistance?: number;
+  sortBy?:
+    | "price-asc"
+    | "price-desc"
+    | "mileage-asc"
+    | "mileage-desc"
+    | "recommended";
 };
 
 async function fetchListings(filters: ListingFilters): Promise<ApiListing[]> {
@@ -42,10 +48,10 @@ async function fetchListings(filters: ListingFilters): Promise<ApiListing[]> {
   if (filters.minPrice) params.set("minPrice", String(filters.minPrice));
   if (filters.maxPrice) params.set("maxPrice", String(filters.maxPrice));
   if (filters.maxMileage) params.set("maxMileage", String(filters.maxMileage));
-  if (filters.postcode) params.set('postcode', 
-String(filters.postcode));
-  if (filters.maxDistance) params.set('maxDistance', String(filters.maxDistance));
-
+  if (filters.postcode) params.set("postcode", String(filters.postcode));
+  if (filters.maxDistance)
+    params.set("maxDistance", String(filters.maxDistance));
+  if (filters.sortBy) params.set("sortBy", filters.sortBy);
   const res = await fetch(`/api/listings?${params}`);
   if (!res.ok) throw new Error("Failed to fetch listings");
   return res.json();
