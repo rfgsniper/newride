@@ -23,6 +23,7 @@ import {
 } from "./lib/useListings";
 
 type Filters = {
+  postcode: string;
   make: string;
   model: string;
   minPrice: string;
@@ -32,6 +33,7 @@ type Filters = {
 
 const queryClient = new QueryClient();
 const initialFilters: Filters = {
+  postcode: "",
   make: "",
   model: "",
   minPrice: "",
@@ -106,6 +108,14 @@ function ListingCard({
         </h3>
         <p className="card-variant">{listing.sourceName}</p>
         <div className="spec-row">
+          {listing.year && (
+            <span>
+              <CalendarDays size={13} /> {listing.year}
+            </span>
+          )}
+          <span>
+            <Gauge size={13} /> {mileageFmt(listing.mileage)}
+          </span>
           {listing.year && (
             <span>
               <CalendarDays size={13} /> {listing.year}

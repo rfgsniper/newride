@@ -19,6 +19,10 @@ export type ApiListing = {
   isActive: boolean;
   firstSeenAt: string;
   lastSeenAt: string;
+  horsepower: number | null;
+  latitude: number | null;
+  longitude: number | null;
+  distance?: number; // only present when postcode filter is used
 };
 
 export type ListingFilters = {
@@ -27,6 +31,8 @@ export type ListingFilters = {
   minPrice?: number;
   maxPrice?: number;
   maxMileage?: number;
+  postcode?: string;
+  maxDistance?: number;
 };
 
 async function fetchListings(filters: ListingFilters): Promise<ApiListing[]> {
@@ -36,6 +42,9 @@ async function fetchListings(filters: ListingFilters): Promise<ApiListing[]> {
   if (filters.minPrice) params.set("minPrice", String(filters.minPrice));
   if (filters.maxPrice) params.set("maxPrice", String(filters.maxPrice));
   if (filters.maxMileage) params.set("maxMileage", String(filters.maxMileage));
+  if (filters.postcode) params.set('postcode', 
+String(filters.postcode));
+  if (filters.maxDistance) params.set('maxDistance', String(filters.maxDistance));
 
   const res = await fetch(`/api/listings?${params}`);
   if (!res.ok) throw new Error("Failed to fetch listings");

@@ -26,11 +26,14 @@ export const listingsTable = pgTable(
     price: doublePrecision("price"),
     mileage: integer("mileage"),
     registration: text("registration"),
+    horsepower: integer("horsepower"),
 
     imageUrl: text("image_url"),
     sourceUrl: text("source_url").notNull(),
     sourceName: text("source_name"),
     location: text("location"),
+    latitude: doublePrecision("latitude"),
+    longitude: doublePrecision("longitude"),
 
     isActive: boolean("is_active").notNull().default(true),
     firstSeenAt: timestamp("first_seen_at").notNull().defaultNow(),
