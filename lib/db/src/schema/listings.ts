@@ -26,7 +26,7 @@ export const listingsTable = pgTable(
     price: doublePrecision("price"),
     mileage: integer("mileage"),
     registration: text("registration"),
-    horsepower: integer("horsepower"),
+    horsepower: doublePrecision("horsepower"),
 
     imageUrl: text("image_url"),
     sourceUrl: text("source_url").notNull(),

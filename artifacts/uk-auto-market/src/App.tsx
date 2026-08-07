@@ -24,6 +24,7 @@ import {
 
 type Filters = {
   postcode: string;
+  maxDistance: string;
   make: string;
   model: string;
   minPrice: string;
@@ -34,6 +35,7 @@ type Filters = {
 const queryClient = new QueryClient();
 const initialFilters: Filters = {
   postcode: "",
+  maxDistance: "",
   make: "",
   model: "",
   minPrice: "",
@@ -155,6 +157,34 @@ function FiltersPanel({
         >
           Reset
         </button>
+      </div>
+      <div className="filter-group">
+        <label className="field-label" htmlFor="filter-postcode">
+          Your postcode
+        </label>
+        <input
+          className="control"
+          id="filter-postcode"
+          value={filters.postcode}
+          onChange={(e) => update("postcode", e.target.value)}
+          placeholder="e.g. SW1A 1AA"
+          data-testid="input-postcode"
+        />
+      </div>
+      <div className="filter-group">
+        <label className="field-label" htmlFor="filter-max-distance">
+          Maximum distance (miles)
+        </label>
+        <input
+          className="control"
+          id="filter-max-distance"
+          type="number"
+          min="0"
+          value={filters.maxDistance}
+          onChange={(e) => update("maxDistance", e.target.value)}
+          placeholder="e.g. 50"
+          data-testid="input-max-distance"
+        />
       </div>
       <div className="filter-group">
         <label className="field-label" htmlFor="filter-make">
@@ -432,6 +462,8 @@ function AppContent() {
   }, [toast]);
 
   const apiFilters: ListingFilters = {
+    postcode: filters.postcode || undefined,
+    maxDistance: filters.maxDistance ? Number(filters.maxDistance) : undefined,
     make: filters.make || undefined,
     model: filters.model || undefined,
     minPrice: filters.minPrice ? Number(filters.minPrice) : undefined,
