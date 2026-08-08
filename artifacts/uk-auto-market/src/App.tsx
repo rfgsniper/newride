@@ -30,6 +30,7 @@ type Filters = {
   minPrice: string;
   maxPrice: string;
   maxMileage: string;
+  fuelType: string;
 };
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ const initialFilters: Filters = {
   minPrice: "",
   maxPrice: "",
   maxMileage: "",
+  fuelType: "",
 };
 
 const money = (value: number | null) =>
@@ -118,6 +120,15 @@ function ListingCard({
           <span>
             <Gauge size={13} /> {mileageFmt(listing.mileage)}
           </span>
+          {listing.fuelType && (
+            <span>
+              <Fuel size={13} /> {listing.fuelType}
+            </span>
+          )}
+          {listing.horsepower && <span>{listing.horsepower} bhp</span>}
+          {listing.distance !== undefined && (
+            <span>{listing.distance.toFixed(1)} mi away</span>
+          )}
         </div>
         <div className="price-row">
           <strong className="price">{money(listing.price)}</strong>
@@ -182,7 +193,7 @@ function FiltersPanel({
           min="0"
           value={filters.maxDistance}
           onChange={(e) => update("maxDistance", e.target.value)}
-          placeholder="e.g. 50"
+          placeholder="Default: 15 miles"
           data-testid="input-max-distance"
         />
       </div>
@@ -249,6 +260,27 @@ function FiltersPanel({
           placeholder="e.g. 40000"
           data-testid="input-max-mileage"
         />
+      </div>
+      <div className="filter-group">
+        <label className="field-label" htmlFor="filter-fuel">
+          Fuel type
+        </label>
+        <div className="select-wrap">
+          <select
+            id="filter-fuel"
+            className="control"
+            value={filters.fuelType}
+            onChange={(e) => update("fuelType", e.target.value)}
+            data-testid="select-filter-fuel"
+          >
+            <option value="">Any fuel type</option>
+            <option value="Petrol">Petrol</option>
+            <option value="Diesel">Diesel</option>
+            <option value="Electric">Electric</option>
+            <option value="Hybrid">Hybrid</option>
+          </select>
+          <ChevronDown size={15} />
+        </div>
       </div>
       {drawerOpen && (
         <button
@@ -469,6 +501,7 @@ function AppContent() {
     minPrice: filters.minPrice ? Number(filters.minPrice) : undefined,
     maxPrice: filters.maxPrice ? Number(filters.maxPrice) : undefined,
     maxMileage: filters.maxMileage ? Number(filters.maxMileage) : undefined,
+    fuelType: filters.fuelType || undefined,
     sortBy: sort,
   };
 

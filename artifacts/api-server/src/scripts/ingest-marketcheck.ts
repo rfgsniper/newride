@@ -10,23 +10,76 @@ if (!API_KEY) {
 // Override entirely with MC_ZIP (single postcode) for a targeted run instead.
 const DEFAULT_CITIES = [
   { name: "London", zip: "EC1A 1BB" },
-  { name: "Birmingham", zip: "B1 1AA" },
-  { name: "Manchester", zip: "M1 1AE" },
-  { name: "Leeds", zip: "LS1 1BA" },
-  { name: "Glasgow", zip: "G1 1AA" },
-  { name: "Liverpool", zip: "L1 1AA" },
-  { name: "Bristol", zip: "BS1 1AA" },
-  { name: "Edinburgh", zip: "EH1 1BB" },
-  { name: "Sheffield", zip: "S1 1AA" },
-  { name: "Newcastle", zip: "NE1 1AA" },
-  { name: "Cardiff", zip: "CF10 1AA" },
+  //{ name: "Birmingham", zip: "B1 1BB" },
+  //{ name: "Manchester", zip: "M1 1AE" },
+  //{ name: "Leeds", zip: "LS1 1BA" },
+  //{ name: "Liverpool", zip: "L1 1RH" },
+  //{ name: "Bristol", zip: "BS1 4HW" },
+  //{ name: "Edinburgh", zip: "EH1 1BB" },
+  //{ name: "Sheffield", zip: "S1 1AA" },
+  //{ name: "Newcastle", zip: "NE1 7XS" },
+  //{ name: "Cardiff", zip: "CF10 1BH" },
 ];
 
+const VAN_BODY_TYPES = [
+  "van",
+  "panel van",
+  "crew van",
+  "combi van",
+  "minibus",
+  "chassis cab",
+];
+
+const VAN_MODELS = [
+  "transit",
+  "transit custom",
+  "transit connect",
+  "transit courier",
+  "transporter",
+  "caddy",
+  "crafter",
+  "sprinter",
+  "vito",
+  "citan",
+  "vivaro",
+  "combo",
+  "movano",
+  "berlingo",
+  "dispatch",
+  "relay",
+  "jumpy",
+  "jumper",
+  "partner",
+  "expert",
+  "boxer",
+  "trafic",
+  "master",
+  "kangoo",
+  "ducato",
+  "doblo",
+  "talento",
+  "fiorino",
+  "scudo",
+  "nv200",
+  "nv300",
+  "nv400",
+  "primastar",
+  "daily",
+  "proace",
+];
+
+function isVan(l: MarketCheckListing): boolean {
+  const bodyType = l.build.bodyType?.toLowerCase() || "";
+  const model = l.build.model?.toLowerCase() || "";
+  if (VAN_BODY_TYPES.some((v) => bodyType.includes(v))) return true;
+  return VAN_MODELS.some((v) => model.includes(v));
+}
+
 const SINGLE_ZIP = process.env.MC_ZIP; // optional single-city override
-const RADIUS = process.env.MC_RADIUS || "30"; // miles per city
+const RADIUS = process.env.MC_RADIUS || "150"; // miles per city
 const MAKE = process.env.MC_MAKE; // optional filter
 const ROWS_PER_PAGE = 50;
-const PAGES_PER_CITY = Number(process.env.MC_PAGES_PER_CITY || 3); // 3 pages = up to 150/city
+const PAGES_PER_CITY = Number(process.env.MC_PAGES_PER_CITY || 15); // 3 pages = up to 150/city
 
 const cities = SINGLE_ZIP
   ? [{ name: "custom", zip: SINGLE_ZIP }]
@@ -41,6 +94,9 @@ interface MarketCheckListing {
     year?: number;
     make?: string;
     model?: string;
+    trim?: string;
+    fuelType?: string;
+    bodyType?: string;
     performance_power_bhp?: number;
   };
   media?: { photo_links?: string[] };
@@ -74,14 +130,15 @@ async function fetchPage(
   if (!res.ok) {
     throw new Error(`MarketCheck API error: ${res.status} ${await res.text()}`);
   }
-  const data = await res.json();
+  const data = (await res.json()) as { listings?: MarketCheckListing[] };
   return data.listings || [];
 }
 
 function normalize(l: MarketCheckListing) {
   const title =
-    [l.build.year, l.build.make, l.build.model].filter(Boolean).join(" ") ||
-    "Unknown vehicle";
+    [l.build.year, l.build.make, l.build.model, l.build.trim]
+      .filter(Boolean)
+      .join(" ") || "Unknown vehicle";
   const lat = l.dealer?.latitude ? Number(l.dealer.latitude) : null;
   const lng = l.dealer?.longitude ? Number(l.dealer.longitude) : null;
 
@@ -96,6 +153,7 @@ function normalize(l: MarketCheckListing) {
     mileage: l.miles ?? null,
     registration: l.vehicle_registration_mark ?? null,
     horsepower: l.build.performance_power_bhp ?? null,
+    fuelType: l.build.fuelType ?? null,
     imageUrl: l.media?.photo_links?.[0] ?? null,
     sourceUrl: l.vdp_url,
     sourceName: l.dealer?.name ?? "Dealer",
@@ -122,6 +180,8 @@ async function run() {
       if (listings.length === 0) break;
 
       for (const raw of listings) {
+        if (isVan(raw)) continue; // skip vans entirely — cars only
+
         const normalized = normalize(raw);
         seenIds.add(normalized.sourceId);
 
@@ -134,6 +194,7 @@ async function run() {
               price: normalized.price,
               mileage: normalized.mileage,
               horsepower: normalized.horsepower,
+              fuelType: normalized.fuelType,
               imageUrl: normalized.imageUrl,
               latitude: normalized.latitude,
               longitude: normalized.longitude,

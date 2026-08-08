@@ -14,12 +14,22 @@ import { z } from "zod/v4";
 
 const router: IRouter = Router();
 
+const HUB_CITIES = [
+  { name: "London", lat: 51.5072, lng: -0.1276 },
+  { name: "Manchester", lat: 53.4808, lng: -2.2426 },
+  { name: "Leeds", lat: 53.8008, lng: -1.5491 },
+  { name: "Liverpool", lat: 53.4084, lng: -2.9916 },
+  { name: "Bristol", lat: 51.4545, lng: -2.5879 },
+];
+const DEFAULT_RADIUS_MILES = 15;
+
 const listingsQuerySchema = z.object({
   make: z.string().optional(),
   model: z.string().optional(),
   minPrice: z.coerce.number().optional(),
   maxPrice: z.coerce.number().optional(),
   maxMileage: z.coerce.number().optional(),
+  fuelType: z.string().optional(),
   postcode: z.string().optional(),
   maxDistance: z.coerce.number().optional(), // miles, only used with postcode
   sortBy: z
@@ -41,7 +51,9 @@ async function geocodePostcode(
       `https://api.postcodes.io/postcodes/${encodeURIComponent(postcode.trim())}`,
     );
     if (!res.ok) return null;
-    const data = await res.json();
+    const data = (await res.json()) as {
+      result: { latitude: number; longitude: number } | null;
+    };
     if (!data.result) return null;
     return { lat: data.result.latitude, lng: data.result.longitude };
   } catch {
@@ -62,6 +74,7 @@ router.get("/listings", async (req, res) => {
     minPrice,
     maxPrice,
     maxMileage,
+    fuelType,
     postcode,
     maxDistance,
     sortBy,
@@ -76,15 +89,20 @@ router.get("/listings", async (req, res) => {
     conditions.push(lte(listingsTable.price, maxPrice));
   if (maxMileage !== undefined)
     conditions.push(lte(listingsTable.mileage, maxMileage));
-
+  if (fuelType) conditions.push(ilike(listingsTable.fuelType, `%${fuelType}%`));
   let originLat: number | null = null;
   let originLng: number | null = null;
+  let effectiveMaxDistance = maxDistance;
+
   if (postcode) {
     const geo = await geocodePostcode(postcode);
     if (geo) {
       originLat = geo.lat;
       originLng = geo.lng;
     }
+    // Sensible default cap when a postcode is given but no explicit distance was chosen
+    if (effectiveMaxDistance === undefined)
+      effectiveMaxDistance = DEFAULT_RADIUS_MILES;
   }
 
   // Haversine distance in miles, computed in SQL when we have an origin point
@@ -97,10 +115,26 @@ router.get("/listings", async (req, res) => {
       )`
       : null;
 
-  if (distanceExpr && maxDistance !== undefined) {
+  if (distanceExpr && effectiveMaxDistance !== undefined) {
     conditions.push(
-      sql`${listingsTable.latitude} IS NOT NULL AND ${distanceExpr} <= ${maxDistance}`,
+      sql`${listingsTable.latitude} IS NOT NULL AND ${distanceExpr} <= ${effectiveMaxDistance}`,
     );
+  }
+
+  // No postcode given at all: default to newest listings near the major hub cities,
+  // rather than genuinely anywhere in the UK.
+  if (!postcode) {
+    const hubConditions = HUB_CITIES.map(
+      (hub) => sql`(
+        ${listingsTable.latitude} IS NOT NULL AND
+        3959 * acos(
+          cos(radians(${hub.lat})) * cos(radians(${listingsTable.latitude})) *
+          cos(radians(${listingsTable.longitude}) - radians(${hub.lng})) +
+          sin(radians(${hub.lat})) * sin(radians(${listingsTable.latitude}))
+        ) <= ${DEFAULT_RADIUS_MILES}
+      )`,
+    );
+    conditions.push(sql`(${sql.join(hubConditions, sql` OR `)})`);
   }
 
   const baseQuery = db

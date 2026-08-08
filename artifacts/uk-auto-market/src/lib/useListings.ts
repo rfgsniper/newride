@@ -23,6 +23,7 @@ export type ApiListing = {
   latitude: number | null;
   longitude: number | null;
   distance?: number; // only present when postcode filter is used
+  fuelType: string | null;
 };
 
 export type ListingFilters = {
@@ -31,6 +32,7 @@ export type ListingFilters = {
   minPrice?: number;
   maxPrice?: number;
   maxMileage?: number;
+  fuelType?: string;
   postcode?: string;
   maxDistance?: number;
   sortBy?:
@@ -54,6 +56,7 @@ async function fetchListings(filters: ListingFilters): Promise<ApiListing[]> {
   if (filters.sortBy) params.set("sortBy", filters.sortBy);
   const res = await fetch(`/api/listings?${params}`);
   if (!res.ok) throw new Error("Failed to fetch listings");
+  if (filters.fuelType) params.set("fuelType", filters.fuelType);
   return res.json();
 }
 
